@@ -1,6 +1,6 @@
 # TestExtensionMac
 
-Xcode8 中取消了plugin，原有的第三方插件全部无法使用。取而代之的，Apple提供了名为Xcode Source Editor Extension的新技术，可以通过为Xcode开发extension的方法，完成辅助功能。虽然目前该技术功能还很有限，无法取代原第三方插件的全部功能，不过也是Apple逐渐开放的一种体现吧...
+Xcode8 中取消了plugin，原有的第三方插件全部无法使用。取而代之的，Apple提供了名为Xcode Source Editor Extension的新技术，可以通过为Xcode开发extension的方式，来实现原来插件的功能。因为是新技术，所以功能上你懂的...
 
 该demo实现了类似VVDocumenter功能，自动生成方法注释。主要目的是体验Xcode Source Editor Extension这个新技术，所以功能上非常简单。
 
