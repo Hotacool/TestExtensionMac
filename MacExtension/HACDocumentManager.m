@@ -9,35 +9,34 @@
 #import "HACDocumentManager.h"
 #import "HACDocument.h"
 
-static NSString *const HACDocumentManagerIsFunc = @"\\s*-\\s*\\(\\s*(\\w+)\\s*\\)([\\w\\s]+)\\s*(\\:\\s*\\(\\s*\\w+\\s*\\)[\\w\\s]+)*\\s*[\\;|\\{]+";
-static NSString *const HACDocumentManagerExtractParam = @"[\\w\\s]+\\:\\s*\\(\\s*(\\w+)+\\s*\\)\\s*(\\w+)";
+static NSString *const HACDocumentManagerIsFunc = @"^-\\((\\w+)\\)(\\w+)(\\:\\(\\w+\\)\\w+)*[\\;|\\{]+";
+static NSString *const HACDocumentManagerExtractParam = @"\\w+\\:\\((\\w+)\\)(\\w+)";
 
 @implementation HACDocumentManager
 
 +(BOOL)handleInvocation:(XCSourceEditorCommandInvocation *)invocation {
+    BOOL ret = NO;
     NSString *documents2Add = [self analyzeInvocation:invocation];
     
     if (documents2Add) {
-        XCSourceTextRange *selection = invocation.buffer.selections.firstObject;
-        NSInteger index = selection.start.line;
-        [invocation.buffer.lines insertObject:documents2Add atIndex:index+1];
-        return YES;
+        @try {
+            XCSourceTextRange *selection = invocation.buffer.selections.firstObject;
+            NSInteger index = selection.start.line;
+            [invocation.buffer.lines insertObject:documents2Add atIndex:index+1];
+            ret = YES;
+        } @catch (NSException *exception) {
+            NSLog(@"%@", exception);
+        } @finally {
+            
+        }
     }
     return NO;
 }
+
 + (NSString *)filterBlankAndBlankLines:(NSString *)str {
-    NSMutableString *Mstr = [ NSMutableString string ];
-    NSArray *arr = [str componentsSeparatedByString:@"\n"];
-    for ( int i = 0 ; i < arr. count ; i++) {
-        NSString *tempStr = ( NSString *)arr[i];
-        [tempStr stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-        [tempStr stringByReplacingOccurrencesOfString:@" " withString:@""];
-        [tempStr stringByReplacingOccurrencesOfString:@"\n" withString:@""];
-        if (tempStr.length != 0 ) {
-            [Mstr appendString :arr[i]];
-        }
-    }
-    return Mstr;
+    NSArray* words = [str componentsSeparatedByCharactersInSet :[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    NSString* nospacestring = [words componentsJoinedByString:@""];
+    return nospacestring;
 }
 
 + (NSString*)analyzeInvocation:(XCSourceEditorCommandInvocation*)invocation {
@@ -54,36 +53,32 @@ static NSString *const HACDocumentManagerExtractParam = @"[\\w\\s]+\\:\\s*\\(\\s
     NSMutableArray<HACParam*> *__block params = [NSMutableArray array];
     NSError * __block error;
     NSRegularExpression *r_isFunc = [NSRegularExpression regularExpressionWithPattern:HACDocumentManagerIsFunc options:NSRegularExpressionCaseInsensitive error:&error];
-    [r_isFunc enumerateMatchesInString:content
-                               options:NSMatchingReportProgress
-                                 range:NSMakeRange(0, [content length])
-                            usingBlock:^(NSTextCheckingResult * _Nullable result, NSMatchingFlags flags, BOOL * _Nonnull stop) {
-                                NSRange matchRange = [result range];
-                                NSString *matchStr = [content substringWithRange:matchRange];
-                                if (result.numberOfRanges == 4) {
-                                    NSRange range1 = [result rangeAtIndex:1];
-                                    returnParam = [content substringWithRange:range1];
-                                    NSRange range2 = [result rangeAtIndex:2];
-                                    funcName = [content substringWithRange:range2];
-                                    // params
-                                    NSRegularExpression *r_params = [NSRegularExpression regularExpressionWithPattern:HACDocumentManagerExtractParam options:0 error:&error];
-                                    [r_params enumerateMatchesInString:matchStr options:0 range:NSMakeRange(0, [matchStr length]) usingBlock:^(NSTextCheckingResult * _Nullable r, NSMatchingFlags f, BOOL * _Nonnull s) {
-                                        if (r.numberOfRanges == 3) {
-                                            NSRange r1 = [r rangeAtIndex:1];
-                                            NSString *type = [matchStr substringWithRange:r1];
-                                            NSRange r2 = [r rangeAtIndex:2];
-                                            NSString *name = [matchStr substringWithRange:r2];
-                                            if (type&&name) {
-                                                [params addObject:[[HACParam alloc] initWithType:type name:name]];
-                                            }
-                                        } else {
-                                            *s = YES;
-                                        }
-                                    }];
-                                } else {
-                                    *stop = YES;
-                                }
-                            }];
+    NSTextCheckingResult *firstResult = [r_isFunc firstMatchInString:content options:0 range:NSMakeRange(0, [content length])];
+    if (firstResult) {
+        NSRange matchRange = [firstResult range];
+        NSString *matchStr = [content substringWithRange:matchRange];
+        if (firstResult.numberOfRanges == 4) {
+            NSRange range1 = [firstResult rangeAtIndex:1];
+            returnParam = [content substringWithRange:range1];
+            NSRange range2 = [firstResult rangeAtIndex:2];
+            funcName = [content substringWithRange:range2];
+            // params
+            NSRegularExpression *r_params = [NSRegularExpression regularExpressionWithPattern:HACDocumentManagerExtractParam options:0 error:&error];
+            [r_params enumerateMatchesInString:matchStr options:0 range:NSMakeRange(0, [matchStr length]) usingBlock:^(NSTextCheckingResult * _Nullable r, NSMatchingFlags f, BOOL * _Nonnull s) {
+                if (r.numberOfRanges == 3) {
+                    NSRange r1 = [r rangeAtIndex:1];
+                    NSString *type = [matchStr substringWithRange:r1];
+                    NSRange r2 = [r rangeAtIndex:2];
+                    NSString *name = [matchStr substringWithRange:r2];
+                    if (type&&name) {
+                        [params addObject:[[HACParam alloc] initWithType:type name:name]];
+                    }
+                } else {
+                    *s = YES;
+                }
+            }];
+        }
+    }
     if (!error) {
         return [HACDocument createDocumentsWithFuncName:funcName returnParam:returnParam params:params];
     }

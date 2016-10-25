@@ -14,6 +14,9 @@
     [super viewDidLoad];
 
     // Do any additional setup after loading the view.
+    NSString *originStr = @"ppplll  l";
+    NSLog(@"origin str: %@", originStr);
+    NSLog(@"after filter: %@", [self filterBlankAndBlankLines:originStr]);
 }
 
 
@@ -23,5 +26,9 @@
     // Update the view, if already loaded.
 }
 
-
+- (NSString *)filterBlankAndBlankLines:(NSString *)str {
+    NSArray* words = [str componentsSeparatedByCharactersInSet :[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    NSString* nospacestring = [words componentsJoinedByString:@""];
+    return nospacestring;
+}
 @end
